@@ -286,5 +286,4 @@ extern "C" JNIEXPORT void JNICALL Java_org_akashbkumar_jni_EventLogReader_getLog
     const char* ch = env->GetStringUTFChars(channel, NULL);
     SubscribeToChannel(ch);
     getHistoricalData(ch);
-
 }
