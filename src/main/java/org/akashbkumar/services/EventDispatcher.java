@@ -41,19 +41,19 @@ public class EventDispatcher
         {
             ApplicationEvent.addEventToApplicationBlockingQueue(event);
         }
-        else if (channel.equalsIgnoreCase("System"))
+        else if ("System".equalsIgnoreCase(channel))
         {
             SystemEvent.addEventToSystemEventsQueue(event);
         }
-        else if (channel.equalsIgnoreCase("Setup"))
+        else if ("Setup".equals(channel))
         {
             SetupEvents.addEventToSetupQueue(event);
         }
-        else if (channel.equalsIgnoreCase("Security"))
+        else if ("Security".equals(channel))
         {
             SecurityEvent.addSecurityToSecurityEventsQueue(event);
         }
-        else if(channel.equalsIgnoreCase("ForwardedEvents"))
+        else if(channel.equals("ForwardedEvents"))
         {
             ForwardedEvents.addEventToForwardedEventsQueue(event);
         }

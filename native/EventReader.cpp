@@ -22,7 +22,7 @@ JavaVM* genv = nullptr;
 std::wstring toWString(const char* str) {
     if (!str) return L"";
     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-    std::wstring wstr(size_needed, 0);
+    std::wstring wstr(size_needed-1, 0);
     MultiByteToWideChar(CP_UTF8, 0, str, -1, &wstr[0], size_needed);
     return wstr;
 }
@@ -217,46 +217,62 @@ DWORD WINAPI EventCallback(EVT_SUBSCRIBE_NOTIFY_ACTION action, PVOID context, EV
 
     return 0;
 }
+//Get ALl data from the Windows Event API
 void getHistoricalData(const char* channelName)
 {
-    std::wcout<<"PRintint the Historical Data "<< channelName << std::endl;
     std::wstring wChannelName = toWString(channelName);
-    EVT_HANDLE eventQuery = EvtQuery(NULL, wChannelName.c_str(), NULL,EvtQueryForwardDirection);
-    if(!eventQuery)
+    EVT_HANDLE eventQuery = EvtQuery(NULL, wChannelName.c_str(), L"*",EvtQueryForwardDirection | EvtQueryChannelPath);
+    if(eventQuery == nullptr)
     {
-        std::wcout<<"Event Query failed"<<std::endl;
+        std::wcout<<"Event Query failed"<<GetLastError()<<std::endl;
+        return;
     }
-    const int batchSize = 10;
-    EVT_HANDLE events[batchSize];
+    const int chunkSize = 64;
+    EVT_HANDLE events[chunkSize];
     DWORD returned = 0;
-    while(EvtNext(eventQuery, batchSize, events, INFINITE, 0, &returned) && returned > 0)
+    int count = 0;
+    while(true)
     {
+        if(EvtNext(eventQuery, chunkSize, events, INFINITE, 0, &returned))
+        {
+            DWORD lastError = GetLastError();
+            if(lastError == ERROR_NO_MORE_ITEMS)
+            {
+                std::wcout<<"Reached End Of Logs";
+                break;
+            }
+        }
         for(DWORD iterator = 0; iterator<returned; iterator++)
         {
             DWORD bufferUsed = 0;
             DWORD propertyCount = 0;
-
-            EvtRender(NULL, events[iterator], EvtRenderEventXml, 0, NULL, &bufferUsed, &propertyCount);
-            if(GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+            if(!EvtRender(NULL, events[iterator], EvtRenderEventXml, 0, NULL, &bufferUsed, &propertyCount))
             {
-                std::vector<wchar_t> buffer (bufferUsed/sizeof(wchar_t));
-                if(EvtRender(NULL,events[iterator], EvtRenderEventXml, bufferUsed, buffer.data(),&bufferUsed,&propertyCount))
+                if(GetLastError() == ERROR_INSUFFICIENT_BUFFER)
                 {
-                    std::string xmlUtf8 = toUtf8(buffer.data());
-                    parseXMLandRetrieveData(xmlUtf8.c_str());
-                }
-                else
-                {
-                    std::wcout<<"Error!!!!!!!!!!!"<<std::endl;
+                    std::vector<wchar_t> buffer (bufferUsed/sizeof(wchar_t));
+                    if(EvtRender(NULL,events[iterator], EvtRenderEventXml, buffer.size() * sizeof(wchar_t), buffer.data(),&bufferUsed,&propertyCount))
+                    {
+                        std::string xmlUtf8 = toUtf8(buffer.data());
+                        parseXMLandRetrieveData(xmlUtf8.c_str());
+                    }
                 }
             }
         }
     }
+    for(DWORD i = 0; i<returned; i++)
+    {
+        if(events[i] != NULL)
+        {
+            EvtClose(events[i]);
+        }
+    }
+    EvtClose(eventQuery);
 }
 void SubscribeToChannel(const char* channelName)
 {
-
-    EVT_HANDLE sub = EvtSubscribe(NULL, NULL, toWString(channelName).c_str(), NULL, NULL, (PVOID)&channelName, (EVT_SUBSCRIBE_CALLBACK)EventCallback, EvtSubscribeStartAtOldestRecord );
+    std::wcout<<"subscribing to "<<toWString(channelName).c_str()<<"--------------"<<std::endl;
+    EVT_HANDLE sub = EvtSubscribe(NULL, NULL, toWString(channelName).c_str(), NULL, NULL, (PVOID)&channelName, (EVT_SUBSCRIBE_CALLBACK)EventCallback, EvtSubscribeToFutureEvents );
     if (!sub)
     {
         std::wcerr << L"Failed to subscribe to: " << channelName << std::endl;
@@ -268,6 +284,7 @@ extern "C" JNIEXPORT void JNICALL Java_org_akashbkumar_jni_EventLogReader_getLog
 {
     env->GetJavaVM(&genv);
     const char* ch = env->GetStringUTFChars(channel, NULL);
-    getHistoricalData(ch);
     SubscribeToChannel(ch);
+    getHistoricalData(ch);
+
 }

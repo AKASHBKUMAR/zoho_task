@@ -11,8 +11,7 @@ public class DatabaseOperations
     private static final String USERNAME = "postgres";
     private static  final String PASSWORD = "root";
     private static Connection connection;
-    private static final String INSERT_STATEMENT = "INSERT INTO application (log_name,event_id,version,opcode,level,time_created,keywords,event_record_id,channel,computer) VALUES(?,?,?,?,?,?,?,?,?,?)";
-    private static final String READ_STATEMENT = "SELECT * FROM application OFFSET ? LIMIT ? ORDER ";
+    private static final String INSERT_STATEMENT = "INSERT INTO setup (log_name,event_id,version,opcode,level,time_created,keywords,event_record_id,channel,computer) VALUES(?,?,?,?,?,?,?,?,?,?)";
     static
     {
         try
@@ -42,5 +41,4 @@ public class DatabaseOperations
         int numberOfRowsUpdated = preparedStatement.executeUpdate();
         System.out.println(numberOfRowsUpdated + " inserted into the table " + event.getChannel());
     }
-
 }
