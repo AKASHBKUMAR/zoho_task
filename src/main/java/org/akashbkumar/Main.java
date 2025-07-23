@@ -8,6 +8,6 @@ public class Main
     {
         EventLogReader eventLogReader = new EventLogReader();
         eventLogReader.getLogs("Setup");
-        //Thread.sleep(Long.MAX_VALUE);
+
     }
 }
